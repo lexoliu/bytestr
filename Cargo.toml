@@ -3,6 +3,7 @@ name = "byte-str"
 version = "0.1.0"
 edition = "2021"
 authors = ["Lexo <me@lexo.cool>"]
+description = "A utility provides a cheaply cloneable and sliceable immutable string."
 license = "MIT"
 categories = ["network-programming", "data-structures"]
 keywords = ["zerocopy", "string"]
