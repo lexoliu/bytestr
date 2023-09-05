@@ -15,5 +15,4 @@ version = "1.0.183"
 optional = true
 
 [features]
-default = []
 serde = ["dep:serde"]
