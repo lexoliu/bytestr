@@ -1,0 +1,19 @@
+[package]
+name = "byte-str"
+version = "0.1.0"
+edition = "2021"
+authors = ["Lexo <me@lexo.cool>"]
+license = "MIT"
+categories = ["network-programming", "data-structures"]
+keywords = ["zerocopy", "string"]
+
+[dependencies]
+bytes = "1.2.1"
+
+[dependencies.serde]
+version = "1.0.183"
+optional = true
+
+[features]
+default = []
+serde = ["dep:serde"]
