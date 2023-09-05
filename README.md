@@ -1,6 +1,6 @@
-# byte-str
+# bytestr
 
-[![crates.io](https://img.shields.io/crates/v/byte-str.svg)](https://crates.io/crates/byte_str) [![doc.rs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/byte_str)
+[![crates.io](https://img.shields.io/crates/v/bytestr.svg)](https://crates.io/crates/bytestr) [![doc.rs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/bytestr)
 
 
 A utility benefits zero-copy network programming,providing a cheaply cloneable and sliceable immutable UTF-8 encoded string.
