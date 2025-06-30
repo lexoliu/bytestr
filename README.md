@@ -11,8 +11,6 @@ A **zero-copy**, **cheaply cloneable**, and **sliceable** immutable UTF-8 encode
 
 - **🚀 Zero-copy operations**: Clone and slice without additional allocations
 - **⚡ High performance**: Built on the battle-tested `bytes` crate
-- **🔒 Memory safe**: All unsafe operations are carefully encapsulated and tested
-- **🌐 UTF-8 guaranteed**: Type-safe UTF-8 string handling
 - **🔄 Serde support**: Optional serialization/deserialization (feature-gated)
 - **📦 `no_std` compatible**: Works in embedded and resource-constrained environments
 
@@ -46,10 +44,14 @@ let cloned = s1.clone();
 let original_str = s1.as_str();
 let slice = s1.slice_ref(&original_str[7..12]); // "world"
 
+// Or use convenient indexing syntax (returns &str)
+let indexed_slice = &s1[7..12]; // "world"
+
 // All standard string operations work
 assert_eq!(s1.len(), 13);
 assert!(s1.starts_with("Hello"));
 assert!(s1.contains("world"));
+assert_eq!(slice.as_str(), indexed_slice);
 ```
 
 ### Advanced Usage

@@ -1,5 +1,5 @@
 use crate::ByteStr;
-use alloc::{borrow::Cow, format, string::String, vec};
+use alloc::{borrow::Cow, format, string::String, vec, vec::Vec};
 
 #[test]
 fn test_new() {
@@ -473,4 +473,188 @@ fn test_zero_copy_guarantees() {
     let bytes = bs.clone().into_bytes();
     let bs_from_bytes = ByteStr::from_utf8(bytes).unwrap();
     assert_eq!(bs.as_str(), bs_from_bytes.as_str());
+}
+
+#[test]
+fn test_index_trait() {
+    let bs = ByteStr::from("Hello, world!");
+
+    // Test different range types
+    assert_eq!(&bs[..], "Hello, world!"); // RangeFull
+    assert_eq!(&bs[0..5], "Hello"); // Range
+    assert_eq!(&bs[7..], "world!"); // RangeFrom
+    assert_eq!(&bs[..5], "Hello"); // RangeTo
+    assert_eq!(&bs[..=4], "Hello"); // RangeToInclusive
+}
+
+#[test]
+fn test_index_trait_unicode() {
+    let bs = ByteStr::from("Hello, 世界!");
+
+    // Test with Unicode strings
+    assert_eq!(&bs[..], "Hello, 世界!");
+    assert_eq!(&bs[0..7], "Hello, ");
+    assert_eq!(&bs[7..10], "世");
+    assert_eq!(&bs[10..13], "界");
+}
+
+#[test]
+#[should_panic(expected = "byte index 8 is not a char boundary")]
+fn test_index_trait_panic_on_invalid_boundary() {
+    let bs = ByteStr::from("Hello, 世界!");
+    // This should panic because 8 is not on a UTF-8 boundary
+    let _ = &bs[8..];
+}
+
+#[test]
+fn test_capacity() {
+    let bs = ByteStr::from("Hello, world!");
+
+    // Capacity should be at least as large as length
+    assert!(bs.capacity() >= bs.len());
+
+    let empty = ByteStr::new();
+    assert_eq!(empty.capacity(), 0);
+}
+
+// UTF-16 related tests
+#[test]
+fn test_from_utf16_valid_ascii() {
+    let utf16: Vec<u16> = "Hello, world!".encode_utf16().collect();
+    let bs = ByteStr::from_utf16(&utf16).unwrap();
+    assert_eq!(bs.as_str(), "Hello, world!");
+}
+
+#[test]
+fn test_from_utf16_valid_unicode() {
+    let utf16: Vec<u16> = "Hello, 世界! 🦀".encode_utf16().collect();
+    let bs = ByteStr::from_utf16(&utf16).unwrap();
+    assert_eq!(bs.as_str(), "Hello, 世界! 🦀");
+}
+
+#[test]
+fn test_from_utf16_empty() {
+    let empty_utf16: Vec<u16> = vec![];
+    let bs = ByteStr::from_utf16(&empty_utf16).unwrap();
+    assert!(bs.is_empty());
+    assert_eq!(bs.as_str(), "");
+}
+
+#[test]
+fn test_from_utf16_invalid() {
+    // High surrogate without low surrogate
+    let invalid_utf16 = vec![0xD800, 0x0041]; // High surrogate + 'A'
+    let result = ByteStr::from_utf16(&invalid_utf16);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_from_utf16_invalid_lone_high_surrogate() {
+    // Lone high surrogate at end
+    let invalid_utf16 = vec![0x0041, 0xD800]; // 'A' + lone high surrogate
+    let result = ByteStr::from_utf16(&invalid_utf16);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_from_utf16_invalid_lone_low_surrogate() {
+    // Lone low surrogate
+    let invalid_utf16 = vec![0xDC00, 0x0041]; // Lone low surrogate + 'A'
+    let result = ByteStr::from_utf16(&invalid_utf16);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_from_utf16_surrogate_pairs() {
+    // Valid surrogate pair (U+1F980 - crab emoji 🦀)
+    let utf16 = vec![0xD83E, 0xDD80]; // High surrogate + low surrogate for 🦀
+    let bs = ByteStr::from_utf16(&utf16).unwrap();
+    assert_eq!(bs.as_str(), "🦀");
+}
+
+#[test]
+fn test_from_utf16_lossy_valid() {
+    let utf16: Vec<u16> = "Hello, world!".encode_utf16().collect();
+    let bs = ByteStr::from_utf16_lossy(&utf16);
+    assert_eq!(bs.as_str(), "Hello, world!");
+}
+
+#[test]
+fn test_from_utf16_lossy_invalid() {
+    // High surrogate without low surrogate - should be replaced with replacement char
+    let invalid_utf16 = vec![0xD800, 0x0041]; // High surrogate + 'A'
+    let bs = ByteStr::from_utf16_lossy(&invalid_utf16);
+
+    // Should contain replacement character and 'A'
+    assert!(bs.as_str().contains('\u{FFFD}'));
+    assert!(bs.as_str().contains('A'));
+}
+
+#[test]
+fn test_from_utf16_lossy_empty() {
+    let empty_utf16: Vec<u16> = vec![];
+    let bs = ByteStr::from_utf16_lossy(&empty_utf16);
+    assert!(bs.is_empty());
+    assert_eq!(bs.as_str(), "");
+}
+
+#[test]
+fn test_from_utf16_lossy_multiple_invalid() {
+    // Multiple invalid sequences
+    let invalid_utf16 = vec![0xD800, 0xD800, 0x0041]; // Two high surrogates + 'A'
+    let bs = ByteStr::from_utf16_lossy(&invalid_utf16);
+
+    // Should contain replacement characters and 'A'
+    let replacement_count = bs.as_str().matches('\u{FFFD}').count();
+    assert!(replacement_count >= 1);
+    assert!(bs.as_str().contains('A'));
+}
+
+#[test]
+fn test_from_utf16_roundtrip() {
+    let original = "Hello, 世界! 🦀 Testing UTF-16 roundtrip";
+    let utf16: Vec<u16> = original.encode_utf16().collect();
+    let bs = ByteStr::from_utf16(&utf16).unwrap();
+
+    assert_eq!(bs.as_str(), original);
+
+    // Test roundtrip consistency
+    let utf16_again: Vec<u16> = bs.as_str().encode_utf16().collect();
+    assert_eq!(utf16, utf16_again);
+}
+
+#[test]
+fn test_from_utf16_edge_cases() {
+    // Test BMP characters (Basic Multilingual Plane)
+    let bmp_chars = "ABCαβγ中文한글";
+    let utf16: Vec<u16> = bmp_chars.encode_utf16().collect();
+    let bs = ByteStr::from_utf16(&utf16).unwrap();
+    assert_eq!(bs.as_str(), bmp_chars);
+
+    // Test supplementary characters (outside BMP)
+    let supplementary = "🌍🎵🎨🚀";
+    let utf16_supp: Vec<u16> = supplementary.encode_utf16().collect();
+    let bs_supp = ByteStr::from_utf16(&utf16_supp).unwrap();
+    assert_eq!(bs_supp.as_str(), supplementary);
+}
+
+#[test]
+fn test_from_utf16_consistency() {
+    // Test that from_utf16 and from_utf16_lossy produce the same result for valid input
+    let test_strings = [
+        "Hello, world!",
+        "世界",
+        "🦀🌍🎵",
+        "",
+        "Mixed: Hello 世界 🦀",
+    ];
+
+    for test_str in &test_strings {
+        let utf16: Vec<u16> = test_str.encode_utf16().collect();
+        let bs_strict = ByteStr::from_utf16(&utf16).unwrap();
+        let bs_lossy = ByteStr::from_utf16_lossy(&utf16);
+
+        assert_eq!(bs_strict.as_str(), bs_lossy.as_str());
+        assert_eq!(bs_strict.as_str(), *test_str);
+    }
 }

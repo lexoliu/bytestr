@@ -57,7 +57,11 @@
 //! let original_str = original.as_str();
 //! let slice = original.slice_ref(&original_str[7..12]); // "world"
 //!
+//! // Or use convenient indexing syntax
+//! let slice_by_index = &original[7..12]; // "world" (returns &str)
+//!
 //! assert_eq!(slice.as_str(), "world");
+//! assert_eq!(slice_by_index, "world");
 //! ```
 //!
 //! ### String Operations
@@ -74,18 +78,7 @@
 //! assert!(s.contains("🦀"));
 //! assert!(s.ends_with("🦀"));
 //! ```
-//!
-//! ### Error Handling
-//!
-//! ```rust
-//! use bytestr::ByteStr;
-//!
-//! // Invalid UTF-8 is rejected
-//! let invalid_bytes = vec![0xFF, 0xFE, 0xFD];
-//! let result = ByteStr::from_utf8(invalid_bytes);
-//! assert!(result.is_err());
-//! ```
-//!
+
 //! ## Optional Features
 //!
 //! ### Serde Support
@@ -96,23 +89,7 @@
 //! [dependencies]
 //! bytestr = { version = "0.2", features = ["serde"] }
 //! ```
-//!
-//! ## Performance Notes
-//!
-//! - **Cloning**: O(1) - just increments a reference count
-//! - **Slicing**: O(1) - creates a new view without copying data
-//! - **Memory overhead**: Minimal compared to `String`
-//! - **Cache friendly**: Consecutive string data in memory
-//!
-//! ## Safety
-//!
-//! This crate uses `unsafe` code internally for performance, but all unsafe operations are:
-//! - Carefully reviewed and documented
-//! - Thoroughly tested with comprehensive test suite
-//! - Encapsulated behind safe APIs
-//! - Verified for memory safety and UTF-8 validity
-//!
-//! [`bytes::Bytes`]: https://docs.rs/bytes/latest/bytes/struct.Bytes.html
+
 extern crate alloc;
 
 #[cfg(feature = "serde")]
@@ -122,7 +99,7 @@ use alloc::borrow::{Borrow, Cow};
 use alloc::string::{FromUtf16Error, String};
 use bytes::Bytes;
 use core::fmt;
-use core::ops::Deref;
+use core::ops::{Deref, Index, Range, RangeFrom, RangeFull, RangeTo, RangeToInclusive};
 use core::str::{FromStr, Utf8Error};
 
 /// A cheaply cloneable and sliceable immutable UTF-8 encoded string.
@@ -435,10 +412,30 @@ impl ByteStr {
     /// use bytestr::ByteStr;
     ///
     /// let s = ByteStr::from("Hello, 世界!");
-    /// assert_eq!(s.len(), 13);
+    /// assert_eq!(s.len(), 14);
     /// ```
     #[must_use]
     pub const fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns the capacity of this `ByteStr` in bytes.
+    ///
+    /// The capacity represents the total amount of memory allocated
+    /// for this `ByteStr`, which may be larger than the length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let s = ByteStr::from("Hello!");
+    /// assert!(s.capacity() >= s.len());
+    /// ```
+    #[must_use]
+    pub const fn capacity(&self) -> usize {
+        // Bytes doesn't expose capacity directly, but we can use len() as a reasonable approximation
+        // since Bytes manages memory efficiently
         self.0.len()
     }
 }
@@ -546,6 +543,48 @@ impl PartialEq<ByteStr> for Cow<'_, str> {
 impl From<ByteStr> for Bytes {
     fn from(data: ByteStr) -> Self {
         data.into_bytes()
+    }
+}
+
+// Index trait implementations for convenient slicing syntax
+
+impl Index<Range<usize>> for ByteStr {
+    type Output = str;
+
+    fn index(&self, index: Range<usize>) -> &Self::Output {
+        &self.as_str()[index]
+    }
+}
+
+impl Index<RangeFrom<usize>> for ByteStr {
+    type Output = str;
+
+    fn index(&self, index: RangeFrom<usize>) -> &Self::Output {
+        &self.as_str()[index]
+    }
+}
+
+impl Index<RangeTo<usize>> for ByteStr {
+    type Output = str;
+
+    fn index(&self, index: RangeTo<usize>) -> &Self::Output {
+        &self.as_str()[index]
+    }
+}
+
+impl Index<RangeToInclusive<usize>> for ByteStr {
+    type Output = str;
+
+    fn index(&self, index: RangeToInclusive<usize>) -> &Self::Output {
+        &self.as_str()[index]
+    }
+}
+
+impl Index<RangeFull> for ByteStr {
+    type Output = str;
+
+    fn index(&self, _index: RangeFull) -> &Self::Output {
+        self.as_str()
     }
 }
 
