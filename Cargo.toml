@@ -1,6 +1,6 @@
 [package]
 name = "bytestr"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Lexo Liu<me@lexo.cool>"]
 description = "A utility provides a cheaply cloneable and sliceable immutable string."
@@ -9,6 +9,7 @@ repository = "https://github.com/lexoliu/bytestr"
 categories = ["network-programming", "data-structures"]
 keywords = ["zerocopy", "string"]
 readme = "README.md"
+rust-version = "1.83.0"
 exclude = [
     ".github/",
     ".gitignore",

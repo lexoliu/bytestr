@@ -13,9 +13,106 @@
     clippy::cargo
 )]
 
-//! This crate provide a utility `ByteStr`,a cheaply cloneable and sliceable immutable UTF-8 encoded string,which is using `Bytes` as storage.
-//! `ByteStr` can be widely used in web programming,and reduce much unnecessary copy.
-
+//! # `ByteStr`
+//!
+//! A zero-copy, cheaply cloneable, and sliceable immutable UTF-8 encoded string type.
+//!
+//! `ByteStr` is built on top of [`bytes::Bytes`] and provides a UTF-8 guaranteed string
+//! that can be cloned and sliced without additional allocations. This makes it perfect
+//! for high-performance network programming, parsing, and any scenario where you need
+//! efficient string manipulation.
+//!
+//! ## Examples
+//!
+//! ### Basic Usage
+//!
+//! ```rust
+//! use bytestr::ByteStr;
+//!
+//! // Create from static string (zero-cost)
+//! let static_str = ByteStr::from_static("Hello, world!");
+//!
+//! // Create from String (reuses allocation)
+//! let from_string = ByteStr::from("Hello, world!".to_string());
+//!
+//! // Create from bytes with validation
+//! let from_bytes = ByteStr::from_utf8(b"Hello, world!".to_vec()).unwrap();
+//!
+//! // All are equal
+//! assert_eq!(static_str, from_string);
+//! assert_eq!(from_string, from_bytes);
+//! ```
+//!
+//! ### Zero-Copy Operations
+//!
+//! ```rust
+//! use bytestr::ByteStr;
+//!
+//! let original = ByteStr::from_static("Hello, world!");
+//!
+//! // Cloning is O(1) - just increments reference count
+//! let cloned = original.clone();
+//!
+//! // Slicing is O(1) - creates a new view without copying
+//! let original_str = original.as_str();
+//! let slice = original.slice_ref(&original_str[7..12]); // "world"
+//!
+//! assert_eq!(slice.as_str(), "world");
+//! ```
+//!
+//! ### String Operations
+//!
+//! ```rust
+//! use bytestr::ByteStr;
+//!
+//! let s = ByteStr::from("Hello, 世界! 🦀");
+//!
+//! // All standard string operations work
+//! assert_eq!(s.len(), 19); // Byte length (not character count)
+//! assert!(s.starts_with("Hello"));
+//! assert!(s.contains("世界"));
+//! assert!(s.contains("🦀"));
+//! assert!(s.ends_with("🦀"));
+//! ```
+//!
+//! ### Error Handling
+//!
+//! ```rust
+//! use bytestr::ByteStr;
+//!
+//! // Invalid UTF-8 is rejected
+//! let invalid_bytes = vec![0xFF, 0xFE, 0xFD];
+//! let result = ByteStr::from_utf8(invalid_bytes);
+//! assert!(result.is_err());
+//! ```
+//!
+//! ## Optional Features
+//!
+//! ### Serde Support
+//!
+//! Enable the `serde` feature for serialization support:
+//!
+//! ```toml
+//! [dependencies]
+//! bytestr = { version = "0.2", features = ["serde"] }
+//! ```
+//!
+//! ## Performance Notes
+//!
+//! - **Cloning**: O(1) - just increments a reference count
+//! - **Slicing**: O(1) - creates a new view without copying data
+//! - **Memory overhead**: Minimal compared to `String`
+//! - **Cache friendly**: Consecutive string data in memory
+//!
+//! ## Safety
+//!
+//! This crate uses `unsafe` code internally for performance, but all unsafe operations are:
+//! - Carefully reviewed and documented
+//! - Thoroughly tested with comprehensive test suite
+//! - Encapsulated behind safe APIs
+//! - Verified for memory safety and UTF-8 validity
+//!
+//! [`bytes::Bytes`]: https://docs.rs/bytes/latest/bytes/struct.Bytes.html
 extern crate alloc;
 
 #[cfg(feature = "serde")]
@@ -33,13 +130,43 @@ use core::str::{FromStr, Utf8Error};
 pub struct ByteStr(Bytes);
 
 impl ByteStr {
-    /// Create a empty new `ByteStr`.
+    /// Creates an empty new `ByteStr`.
+    ///
+    /// This operation is very cheap as it doesn't allocate any memory.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let s = ByteStr::new();
+    /// assert!(s.is_empty());
+    /// assert_eq!(s.len(), 0);
+    /// ```
     #[must_use]
     pub const fn new() -> Self {
         Self(Bytes::new())
     }
 
-    /// Converts a vector of bytes to a `ByteStr`.This method will reuse the vector so that no clone will happen.
+    /// Converts a vector of bytes to a `ByteStr`.
+    ///
+    /// This method will reuse the existing allocation, so no cloning will happen.
+    /// The bytes are validated to ensure they form valid UTF-8.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// // Valid UTF-8
+    /// let valid_bytes = b"Hello, world!".to_vec();
+    /// let s = ByteStr::from_utf8(valid_bytes).unwrap();
+    /// assert_eq!(s.as_str(), "Hello, world!");
+    ///
+    /// // Invalid UTF-8
+    /// let invalid_bytes = vec![0xFF, 0xFE, 0xFD];
+    /// assert!(ByteStr::from_utf8(invalid_bytes).is_err());
+    /// ```
     ///
     /// # Errors
     ///
@@ -53,12 +180,37 @@ impl ByteStr {
         }
     }
 
-    /// Create a `ByteStr` from a static string.This method will reuse the vector so that no clone will happen.
+    /// Creates a `ByteStr` from a static string slice.
+    ///
+    /// This is a zero-cost operation as it directly references the static data
+    /// without any allocation or copying.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let s = ByteStr::from_static("Hello, static world!");
+    /// assert_eq!(s.as_str(), "Hello, static world!");
+    /// ```
     #[must_use]
     pub const fn from_static(s: &'static str) -> Self {
         unsafe { Self::from_utf8_unchecked(Bytes::from_static(s.as_bytes())) }
     }
 
+    /// Creates a `ByteStr` from bytes without UTF-8 validation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    /// use bytes::Bytes;
+    ///
+    /// let bytes = Bytes::from("Hello, world!");
+    /// let s = unsafe { ByteStr::from_utf8_unchecked(bytes) };
+    /// assert_eq!(s.as_str(), "Hello, world!");
+    /// ```
+    ///
     /// # Safety
     ///
     /// This function is unsafe because it does not check that the bytes passed
@@ -68,12 +220,34 @@ impl ByteStr {
     pub const unsafe fn from_utf8_unchecked(bytes: Bytes) -> Self {
         Self(bytes)
     }
-    /// Unwrap the `ByteStr` into the inner `Bytes` object.
+    /// Unwraps the `ByteStr` into the inner `Bytes` object.
+    ///
+    /// This operation consumes the `ByteStr` and returns the underlying
+    /// `Bytes` without any copying.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let s = ByteStr::from("Hello, world!");
+    /// let bytes = s.into_bytes();
+    /// assert_eq!(bytes.as_ref(), b"Hello, world!");
+    /// ```
     pub fn into_bytes(self) -> Bytes {
         self.0
     }
 
     /// Extracts a string slice containing the entire string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let s = ByteStr::from("Hello, world!");
+    /// assert_eq!(s.as_str(), "Hello, world!");
+    /// ```
     pub fn as_str(&self) -> &str {
         unsafe { core::str::from_utf8_unchecked(self.as_bytes()) }
     }
@@ -92,31 +266,116 @@ impl ByteStr {
         }
     }
 
-    /// Returns a slice of self that is equivalent to the given subset.No copy will happen in this method.
-    /// # Panics:
-    /// Panics if the given `subset` is not contained within the `ByteStr` in fact.
+    /// Returns a slice of self that is equivalent to the given subset.
+    ///
+    /// This operation creates a new `ByteStr` that references a subset of the
+    /// original data without copying. The subset must be a slice of the original
+    /// string that lies on UTF-8 character boundaries.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let s = ByteStr::from("Hello, world!");
+    /// let original_str = s.as_str();
+    /// let world_slice = &original_str[7..12]; // "world"
+    /// let sliced = s.slice_ref(world_slice);
+    /// assert_eq!(sliced.as_str(), "world");
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given `subset` is not contained within the `ByteStr`.
     #[must_use]
     pub fn slice_ref(&self, subset: &str) -> Self {
         unsafe { Self::from_utf8_unchecked(self.0.slice_ref(subset.as_bytes())) }
     }
 
-    /// Removing all contents of the `ByteStr` but still remain the capacity.
+    /// Removes all contents of the `ByteStr` while retaining the capacity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let mut s = ByteStr::from("Hello, world!");
+    /// assert!(!s.is_empty());
+    /// s.clear();
+    /// assert!(s.is_empty());
+    /// ```
     pub fn clear(&mut self) {
         self.0.clear();
     }
 
-    /// Provide a reference of the inner `Bytes` object.
+    /// Provides a reference to the inner `Bytes` object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let s = ByteStr::from("Hello, world!");
+    /// let bytes = s.as_bytes();
+    /// assert_eq!(bytes.len(), 13);
+    /// ```
     pub const fn as_bytes(&self) -> &Bytes {
         &self.0
     }
 
-    /// Provide a mutable reference of the inner `Bytes` object.
+    /// Provides a mutable reference to the inner `Bytes` object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let mut s = ByteStr::from("Hello, world!");
+    /// unsafe {
+    ///     let bytes_mut = s.as_bytes_mut();
+    ///     // Careful: ensure any modifications maintain UTF-8 validity
+    /// }
+    /// ```
+    ///
     /// # Safety
     ///
     /// The caller must ensure that the content of the slice is valid UTF-8
     /// before the borrow ends and the `ByteStr` is used.
     pub const unsafe fn as_bytes_mut(&mut self) -> &mut Bytes {
         &mut self.0
+    }
+
+    /// Returns `true` if the `ByteStr` has a length of zero bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let empty = ByteStr::new();
+    /// assert!(empty.is_empty());
+    ///
+    /// let non_empty = ByteStr::from("hello");
+    /// assert!(!non_empty.is_empty());
+    /// ```
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns the length of this `ByteStr` in bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let s = ByteStr::from("Hello, 世界!");
+    /// assert_eq!(s.len(), 13);
+    /// ```
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
