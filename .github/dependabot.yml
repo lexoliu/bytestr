@@ -1,0 +1,42 @@
+version: 2
+updates:
+  # Enable version updates for Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    # Group minor and patch updates together
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore major version updates for stable dependencies
+    ignore:
+      - dependency-name: "bytes"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "serde"
+        update-types: ["version-update:semver-major"]
+    # Auto-merge patch updates
+    auto-merge:
+      - dependency-name: "*"
+        update-types:
+          - "security"
+          - "version-update:semver-patch"
+    # Add reviewers (replace with your GitHub username)
+    reviewers:
+      - "lexoliu"
+    # Add labels to PRs
+    labels:
+      - "dependencies"
+      - "rust"
+    # Commit message prefix
+    commit-message:
+      prefix: "deps"
+      include: "scope"
