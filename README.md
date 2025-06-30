@@ -2,7 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/bytestr.svg)](https://crates.io/crates/bytestr)
 [![doc.rs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/bytestr)
-[![Rust Version](https://img.shields.io/badge/rust-1.83.0%2B-orange.svg)](https://www.rust-lang.org)
+[![Rust Version](https://img.shields.io/badge/rust-1.85.0%2B-orange.svg)](https://www.rust-lang.org)
 [![CI](https://github.com/lexoliu/bytestr/workflows/CI/badge.svg)](https://github.com/lexoliu/bytestr/actions)
 
 A **zero-copy**, **cheaply cloneable**, and **sliceable** immutable UTF-8 encoded string type built on top of [`bytes::Bytes`](https://docs.rs/bytes). Perfect for high-performance network programming and efficient string manipulation.
