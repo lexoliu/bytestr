@@ -20,7 +20,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bytestr = "0.2"
+bytestr = "0.3"
 ```
 
 ### Basic Usage
