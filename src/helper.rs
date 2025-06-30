@@ -18,7 +18,7 @@ impl ByteStr {
     /// assert_eq!(lines[1].as_str(), "bar");
     /// assert_eq!(lines[2].as_str(), "baz");
     /// ```
-    pub fn lines(&self) -> impl Iterator<Item = Self> + use<'_> {
+    pub fn lines(&self) -> impl Iterator<Item = Self> {
         self.as_str().lines().map(|s| self.slice_ref(s))
     }
 
@@ -68,7 +68,7 @@ impl ByteStr {
     /// assert_eq!(parts[1].as_str(), "world");
     /// assert_eq!(parts[2].as_str(), "rust");
     /// ```
-    pub fn split<'a>(&'a self, pat: &'a str) -> impl Iterator<Item = Self> + use<'a> {
+    pub fn split(&self, pat: &str) -> impl Iterator<Item = Self> {
         self.as_str().split(pat).map(move |s| self.slice_ref(s))
     }
 
@@ -89,7 +89,7 @@ impl ByteStr {
     /// assert_eq!(parts[1].as_str(), "b");
     /// assert_eq!(parts[2].as_str(), "c,d");
     /// ```
-    pub fn splitn<'a>(&'a self, n: usize, pat: &'a str) -> impl Iterator<Item = Self> + use<'a> {
+    pub fn splitn(&self, n: usize, pat: &str) -> impl Iterator<Item = Self> {
         self.as_str().splitn(n, pat).map(move |s| self.slice_ref(s))
     }
 
@@ -134,7 +134,7 @@ impl ByteStr {
     /// assert_eq!(words[0].as_str(), "hello");
     /// assert_eq!(words[1].as_str(), "world");
     /// ```
-    pub fn split_whitespace(&self) -> impl Iterator<Item = Self> + use<'_> {
+    pub fn split_whitespace(&self) -> impl Iterator<Item = Self> {
         self.as_str().split_whitespace().map(|s| self.slice_ref(s))
     }
 

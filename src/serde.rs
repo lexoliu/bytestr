@@ -1,7 +1,7 @@
 use crate::ByteStr;
 use alloc::borrow::ToOwned;
 use core::fmt;
-use serde::{de, de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de, de::Visitor};
 
 impl Serialize for ByteStr {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
