@@ -75,7 +75,7 @@ impl ByteStr {
 
     /// Extracts a string slice containing the entire string.
     pub fn as_str(&self) -> &str {
-        unsafe { core::str::from_utf8_unchecked(self.as_bytes().deref()) }
+        unsafe { core::str::from_utf8_unchecked(self.as_bytes()) }
     }
 
     /// Shortens the string, keeping the first `len` bytes and dropping the rest.
@@ -225,3 +225,6 @@ impl From<ByteStr> for Bytes {
         data.into_bytes()
     }
 }
+
+#[cfg(test)]
+mod tests;
