@@ -2,18 +2,33 @@
 name = "bytestr"
 version = "0.1.0"
 edition = "2021"
-authors = ["Lexo <me@lexo.cool>"]
+authors = ["Lexo Liu<me@lexo.cool>"]
 description = "A utility provides a cheaply cloneable and sliceable immutable string."
 license = "MIT"
+repository = "https://github.com/lexoliu/bytestr"
 categories = ["network-programming", "data-structures"]
 keywords = ["zerocopy", "string"]
+readme = "README.md"
+exclude = [
+    ".github/",
+    ".gitignore",
+    "target/",
+]
 
 [dependencies]
-bytes = "1.2.1"
+bytes = { version = "1.2.1", default-features = false }
 
 [dependencies.serde]
-version = "1.0.183"
+version = "1.0"
+default-features = false
 optional = true
 
 [features]
 serde = ["dep:serde"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
