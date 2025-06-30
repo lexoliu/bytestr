@@ -119,7 +119,7 @@ extern crate alloc;
 mod serde;
 
 use alloc::borrow::{Borrow, Cow};
-use alloc::string::String;
+use alloc::string::{FromUtf16Error, String};
 use bytes::Bytes;
 use core::fmt;
 use core::ops::Deref;
@@ -178,6 +178,70 @@ impl ByteStr {
             Ok(_) => Ok(unsafe { Self::from_utf8_unchecked(bytes) }),
             Err(e) => Err(e),
         }
+    }
+
+    /// Converts a vector of bytes to a `ByteStr`, replacing invalid UTF-8 sequences with the replacement character (U+FFFD).
+    ///
+    /// This method will reuse the existing allocation if the bytes are valid UTF-8, or allocate a new string if invalid sequences are found.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let valid_bytes = b"Hello, world!".to_vec();
+    /// let s = ByteStr::from_utf8_lossy(valid_bytes);
+    /// assert_eq!(s.as_str(), "Hello, world!");
+    ///
+    /// let invalid_bytes = vec![0xFF, 0xFE, 0xFD];
+    /// let s = ByteStr::from_utf8_lossy(invalid_bytes);
+    /// assert_eq!(s.as_str(), "\u{FFFD}\u{FFFD}\u{FFFD}");
+    /// ```
+    pub fn from_utf8_lossy(bytes: impl Into<Bytes>) -> Self {
+        let bytes = bytes.into();
+
+        match String::from_utf8_lossy(bytes.as_ref()) {
+            Cow::Borrowed(_) => unsafe { Self::from_utf8_unchecked(bytes) },
+            Cow::Owned(string) => Self::from(string),
+        }
+    }
+
+    /// Converts a slice of UTF-16 encoded data to a `ByteStr`.
+    ///
+    /// This method will allocate a new string and convert the UTF-16 data to UTF-8.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let utf16: Vec<u16> = "Hello, world!".encode_utf16().collect();
+    /// let s = ByteStr::from_utf16(&utf16).unwrap();
+    /// assert_eq!(s.as_str(), "Hello, world!");
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the provided UTF-16 data is not valid.
+    pub fn from_utf16(bytes: impl AsRef<[u16]>) -> Result<Self, FromUtf16Error> {
+        String::from_utf16(bytes.as_ref()).map(Self::from)
+    }
+
+    /// Converts a slice of UTF-16 encoded data to a `ByteStr`, replacing invalid sequences with the replacement character (U+FFFD).
+    ///
+    /// This method will allocate a new string and convert the UTF-16 data to UTF-8, replacing any invalid sequences.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytestr::ByteStr;
+    ///
+    /// let utf16: Vec<u16> = vec![0xD800, 0xDC00, 0x0041]; // valid surrogate pair + 'A'
+    /// let s = ByteStr::from_utf16_lossy(&utf16);
+    /// assert!(s.as_str().contains('\u{FFFD}') || s.as_str().contains('A'));
+    /// ```
+    pub fn from_utf16_lossy(bytes: impl AsRef<[u16]>) -> Self {
+        String::from_utf16_lossy(bytes.as_ref()).into()
     }
 
     /// Creates a `ByteStr` from a static string slice.
